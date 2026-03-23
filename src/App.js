@@ -128,6 +128,7 @@ const ICONS = {
   student:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>,
   lock:     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>,
   home:     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+  results:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>,
 };
 
 // ─── File utilities ───────────────────────────────────────────────────────────
@@ -171,10 +172,7 @@ function fmtCountdown(ms) {
   return `${s}s left`;
 }
 
-// ─── Firebase config — paste YOUR values from Firebase Console here ──────────
-// Firebase Console → Project Settings → Your apps → SDK setup & config
-
-
+// ─── Firebase config ──────────────────────────────────────────────────────────
 const firebaseConfig = {
   apiKey:            "AIzaSyBr-OyFMjWFuiNPlNX8idi__URoKoQrnhI",
   authDomain:        "exam-portal-ed7b3.firebaseapp.com",
@@ -188,12 +186,10 @@ const _app       = initializeApp(firebaseConfig);
 const _db        = getFirestore(_app);
 const COLL       = "portal";
 
-// Firestore doc IDs can't contain "/" — encode with "~"
 const _enc = k => k.replace(/\//g, "~");
 const _dec = id => id.replace(/~/g, "/");
 const _pfx = k => { const i = k.indexOf(":"); return i >= 0 ? k.slice(0, i + 1) : k; };
 
-// ─── db — same API the rest of the app uses ───────────────────────────────────
 const db = {
   async get(key) {
     try {
@@ -229,11 +225,9 @@ function gen5Code() { return String(Math.floor(10000 + Math.random() * 90000)); 
 function Shell({ sidebar, children, topbar }) {
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden", fontFamily: "'Plus Jakarta Sans',sans-serif", background: "#fff" }}>
-      {/* Sidebar */}
       <aside style={{ width: 230, flexShrink: 0, borderRight: "1px solid #f0f0f0", display: "flex", flexDirection: "column", padding: "18px 12px", overflowY: "auto", background: "#fafafa" }}>
         {sidebar}
       </aside>
-      {/* Content */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {topbar && (
           <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 28px", borderBottom: "1px solid #f0f0f0", background: "#fff", flexShrink: 0 }}>
@@ -282,6 +276,8 @@ export default function App() {
       {screen === "home"    && <HomeScreen    onNav={setScreen} />}
       {screen === "student" && <StudentScreen onBack={() => setScreen("home")} />}
       {screen === "teacher" && <TeacherScreen onBack={() => setScreen("home")} />}
+      {/* ── NEW: Results screen ── */}
+      {screen === "results" && <StudentResultView onBack={() => setScreen("home")} />}
     </div>
   );
 }
@@ -296,6 +292,7 @@ function HomeScreen({ onNav }) {
           <NavSection title="Portals" items={[
             { id: "student", icon: "student", label: "Student" },
             { id: "teacher", icon: "lock",    label: "Teacher" },
+            { id: "results", icon: "results", label: "My Results" },
           ]} active={null} onSelect={onNav} />
           <div style={{ marginTop: "auto", padding: "12px 8px", borderTop: "1px solid #f0f0f0" }}>
             <p style={{ fontSize: 12, color: "#9ca3af" }}>Teacher password: <strong style={{ color: "#374151" }}>teacher123</strong></p>
@@ -319,10 +316,12 @@ function HomeScreen({ onNav }) {
         <h1 style={{ fontSize: 32, fontWeight: 800, color: T.black, letterSpacing: "-0.04em", marginBottom: 10 }}>Digital Exam System</h1>
         <p style={{ fontSize: 15, color: T.gray6, lineHeight: 1.7, marginBottom: 32 }}>Upload questions, submit handwritten answers, and get graded — all in one place.</p>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        {/* ── UPDATED: 3-column grid with Results card ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
           {[
-            { id: "student", icon: "student", title: "Student",  desc: "Enter your name, get your exam code, and submit answers", cta: "Enter as Student", primary: true },
-            { id: "teacher", icon: "lock",    title: "Teacher",  desc: "Create exams, view submissions, grade answers and see leaderboards", cta: "Teacher Login", primary: false },
+            { id: "student", icon: "student", title: "Student",    desc: "Enter your name, get your exam code, and submit answers",               cta: "Enter as Student", primary: true  },
+            { id: "teacher", icon: "lock",    title: "Teacher",    desc: "Create exams, view submissions, grade answers and see leaderboards",     cta: "Teacher Login",    primary: false },
+            { id: "results", icon: "results", title: "My Results", desc: "Enter your code to view scores, grade breakdown and answer analysis",    cta: "Check Results",    primary: false },
           ].map(({ id, icon, title, desc, cta, primary }) => (
             <div key={id} className="card card-click fu2" onClick={() => onNav(id)} style={{ padding: "24px" }}>
               <div style={{ width: 40, height: 40, background: primary ? "#111" : T.gray1, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
@@ -400,7 +399,6 @@ function StudentScreen({ onBack }) {
   }
   const allAnswered = exam ? exam.questions.every(q => answers[q.id] !== undefined) : false;
 
-  // Sidebar nav items depending on step
   const sidebarStep = step === "take" ? "take" : step === "exams" ? "exams" : "entry";
 
   const sidebar = (
@@ -421,7 +419,6 @@ function StudentScreen({ onBack }) {
     </>
   );
 
-  // ── NAME ──
   if (step === "name") return (
     <Shell sidebar={sidebar} topbar={<><div style={{ display: "flex", gap: 8 }}><button className="tab-pill active">Identity</button></div><span /><OutlineBtn onClick={onBack}>← Home</OutlineBtn></>}>
       <div className="fu" style={{ maxWidth: 460 }}>
@@ -434,7 +431,6 @@ function StudentScreen({ onBack }) {
     </Shell>
   );
 
-  // ── VERIFY ──
   if (step === "verify") return (
     <Shell sidebar={sidebar} topbar={<><div style={{ display: "flex", gap: 8 }}><button className="tab-pill active">Verify Code</button></div><span /><OutlineBtn onClick={() => setStep("name")}>← Back</OutlineBtn></>}>
       <div className="fu" style={{ maxWidth: 460 }}>
@@ -462,7 +458,6 @@ function StudentScreen({ onBack }) {
     </Shell>
   );
 
-  // ── EXAMS ──
   if (step === "exams") return (
     <Shell sidebar={sidebar} topbar={<><div style={{ display: "flex", gap: 8 }}><button className="tab-pill active">Available Exams</button></div><span style={{ fontSize: 14, fontWeight: 600, color: T.gray6 }}>Hello, {name}</span><OutlineBtn onClick={() => setStep("verify")}>← Back</OutlineBtn></>}>
       <div className="fu">
@@ -507,7 +502,6 @@ function StudentScreen({ onBack }) {
     </Shell>
   );
 
-  // ── ALREADY SUBMITTED ──
   if (step === "take" && alreadySub) return (
     <Shell sidebar={sidebar} topbar={<><span /><span /><OutlineBtn onClick={() => setStep("exams")}>← Back to Exams</OutlineBtn></>}>
       <div className="fu" style={{ maxWidth: 480 }}>
@@ -526,7 +520,6 @@ function StudentScreen({ onBack }) {
     </Shell>
   );
 
-  // ── TAKE EXAM ──
   if (step === "take") {
     const isWarn = timeLeft !== null && timeLeft <= 120;
     return (
@@ -559,7 +552,6 @@ function StudentScreen({ onBack }) {
     );
   }
 
-  // ── DONE ──
   return (
     <Shell sidebar={sidebar} topbar={<><span /><span /><OutlineBtn onClick={onBack}>← Home</OutlineBtn></>}>
       <div className="fu" style={{ maxWidth: 480 }}>
@@ -683,7 +675,6 @@ function TeacherScreen({ onBack }) {
     { id: "leaderboard", icon: "trophy",  label: "Leaderboard" },
   ];
 
-  // Login screen
   if (!loggedIn) return (
     <Shell
       sidebar={<><Logo onClick={onBack} /><NavSection title="Teacher" items={teacherNav} active={null} onSelect={() => {}} /></>}
@@ -849,7 +840,6 @@ function CreateExamView({ onSaved }) {
     <div className="fu">
       <PageHeader subtitle="Teacher" title="Create New Exam" />
 
-      {/* Exam details */}
       <div className="card" style={{ marginBottom: 14 }}>
         <p style={{ fontSize: 13, fontWeight: 700, color: T.black, marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.04em" }}>Exam Details</p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -861,7 +851,6 @@ function CreateExamView({ onSaved }) {
         <p style={{ ...mut, marginTop: -4 }}>Duration = countdown timer for students. Submission deadline = when exam disappears from student list.</p>
       </div>
 
-      {/* Add question */}
       <div className="card" style={{ marginBottom: 14 }}>
         <p style={{ fontSize: 13, fontWeight: 700, color: T.black, marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.04em" }}>Add Question</p>
 
@@ -913,7 +902,6 @@ function CreateExamView({ onSaved }) {
         <PrimaryBtn onClick={addQuestion} disabled={!qText.trim() && qFiles.length === 0}>+ Add Question</PrimaryBtn>
       </div>
 
-      {/* Question list */}
       {questions.length > 0 && (
         <div className="card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -1047,7 +1035,8 @@ function SubmissionsView({ exams }) {
                   {ans?.files?.length > 0 ? ans.files.map((f, fi) => (
                     f.mimeType === "application/pdf"
                       ? <div key={fi} style={{ border: `1px solid ${T.greenBorder}`, borderRadius: 10, overflow: "hidden", marginBottom: 8 }}><div style={{ padding: "7px 12px", background: T.greenBg, display: "flex", alignItems: "center", gap: 8 }}><span>📄</span><span style={{ fontSize: 12, color: T.gray6 }}>{f.name}</span></div><iframe src={f.dataUrl} style={{ width: "100%", height: 300, border: "none", display: "block" }} title={f.name} /></div>
-                      : <img key={fi} src={f.dataUrl} alt={`Answer ${fi + 1}`} style={{ width: "100%", borderRadius: 10, border: `1px solid ${T.greenBorder}`, marginBottom: 8 }} />
+                      // ── NEW: AnnotatableImage replaces plain <img> ──
+                      : <AnnotatableImage key={fi} dataUrl={f.dataUrl} name={f.name} />
                   )) : <p style={{ ...mut, fontStyle: "italic" }}>No files submitted.</p>}
                 </div>
               )}
@@ -1133,13 +1122,11 @@ function LeaderboardView({ exams }) {
         </div>
       ) : (
         <div className="card">
-          {/* Header */}
           <div style={{ display: "grid", gridTemplateColumns: "44px 1fr 80px 70px", gap: 8, padding: "6px 8px 10px", borderBottom: `1px solid ${T.gray2}`, marginBottom: 4 }}>
             {["#", "Student", "Score", "%"].map((h, i) => (
               <span key={i} style={{ fontSize: 11, fontWeight: 700, color: T.gray4, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: i > 1 ? "right" : "left" }}>{h}</span>
             ))}
           </div>
-
           {lb.entries.map((entry, i) => {
             const pct = lb.maxTotal > 0 ? Math.round(entry.totalScore / lb.maxTotal * 100) : 0;
             const isTop = i < 3;
@@ -1174,4 +1161,474 @@ function LeaderboardView({ exams }) {
 }
 
 
+// ════════════════════════════════════════════════════════════════════════════════
+// ─── NEW FEATURES ─────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════════
 
+// ─── Annotation Tool (Teacher) ────────────────────────────────────────────────
+function AnnotationTool({ imageData, fileName, onClose }) {
+  const canvasRef  = useRef();
+  const imgRef     = useRef();
+  const lastPos    = useRef(null);
+  const [tool,    setTool]    = useState("pen");
+  const [color,   setColor]   = useState("#ef4444");
+  const [size,    setSize]    = useState(4);
+  const [drawing, setDrawing] = useState(false);
+  const [history, setHistory] = useState([]);
+
+  function onImgLoad() {
+    const c = canvasRef.current;
+    c.width  = imgRef.current.naturalWidth;
+    c.height = imgRef.current.naturalHeight;
+  }
+
+  function getPos(e) {
+    const canvas = canvasRef.current;
+    const rect   = canvas.getBoundingClientRect();
+    const sx = canvas.width  / rect.width;
+    const sy = canvas.height / rect.height;
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: (cx - rect.left) * sx, y: (cy - rect.top) * sy };
+  }
+
+  function saveHistory() {
+    const ctx = canvasRef.current.getContext("2d");
+    setHistory(h => [...h.slice(-19), ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height)]);
+  }
+
+  function startDraw(e) {
+    e.preventDefault();
+    saveHistory();
+    lastPos.current = getPos(e);
+    setDrawing(true);
+  }
+
+  function doDraw(e) {
+    e.preventDefault();
+    if (!drawing || !lastPos.current) return;
+    const ctx = canvasRef.current.getContext("2d");
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(lastPos.current.x, lastPos.current.y);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.lineCap  = "round";
+    ctx.lineJoin = "round";
+    if (tool === "eraser") {
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.lineWidth   = size * 5;
+      ctx.strokeStyle = "rgba(0,0,0,1)";
+    } else {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.lineWidth   = size;
+      ctx.strokeStyle = color;
+    }
+    ctx.stroke();
+    lastPos.current = pos;
+  }
+
+  function stopDraw() { setDrawing(false); lastPos.current = null; }
+
+  function undo() {
+    if (!history.length) return;
+    const prev = history[history.length - 1];
+    canvasRef.current.getContext("2d").putImageData(prev, 0, 0);
+    setHistory(h => h.slice(0, -1));
+  }
+
+  function clearAll() {
+    saveHistory();
+    const c = canvasRef.current;
+    c.getContext("2d").clearRect(0, 0, c.width, c.height);
+  }
+
+  function download() {
+    const img = imgRef.current;
+    const ann = canvasRef.current;
+    const out = document.createElement("canvas");
+    out.width  = ann.width;
+    out.height = ann.height;
+    const ctx  = out.getContext("2d");
+    ctx.drawImage(img, 0, 0, ann.width, ann.height);
+    ctx.drawImage(ann, 0, 0);
+    const a  = document.createElement("a");
+    a.download = `annotated_${fileName || "submission"}.png`;
+    a.href = out.toDataURL("image/png");
+    a.click();
+  }
+
+  const PEN_COLORS = [
+    { c: "#ef4444", label: "Red"    },
+    { c: "#3b82f6", label: "Blue"   },
+    { c: "#22c55e", label: "Green"  },
+    { c: "#f97316", label: "Orange" },
+    { c: "#111111", label: "Black"  },
+    { c: "#ffffff", label: "White"  },
+  ];
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(10,10,10,0.92)", display: "flex", flexDirection: "column", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      {/* Toolbar */}
+      <div style={{ background: "#1c1c1e", borderBottom: "1px solid #2a2a2a", padding: "10px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", flexShrink: 0 }}>
+        <span style={{ fontWeight: 800, fontSize: 14, color: "#fff", marginRight: 4 }}>✏️ Annotate</span>
+        <span style={{ color: "#555", fontSize: 12, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fileName}</span>
+        <div style={{ width: 1, height: 24, background: "#333" }} />
+        {[["pen", "✏️ Pen"], ["eraser", "◻ Eraser"]].map(([t, lbl]) => (
+          <button key={t} onClick={() => setTool(t)} style={{ padding: "5px 14px", borderRadius: 6, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: tool === t ? "#fff" : "#2a2a2a", color: tool === t ? "#111" : "#aaa", transition: "all .15s" }}>{lbl}</button>
+        ))}
+        <div style={{ width: 1, height: 24, background: "#333" }} />
+        <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+          {PEN_COLORS.map(({ c, label }) => (
+            <div key={c} title={label} onClick={() => { setColor(c); setTool("pen"); }}
+              style={{ width: 22, height: 22, borderRadius: "50%", background: c, cursor: "pointer", border: color === c && tool === "pen" ? "3px solid #3b82f6" : c === "#ffffff" ? "2px solid #555" : "2px solid transparent", transition: "border .1s", boxShadow: color === c && tool === "pen" ? "0 0 0 2px rgba(59,130,246,0.3)" : "none" }} />
+          ))}
+        </div>
+        <div style={{ width: 1, height: 24, background: "#333" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ color: "#888", fontSize: 11, fontWeight: 600 }}>SIZE</span>
+          <input type="range" min={1} max={14} value={size} onChange={e => setSize(+e.target.value)} style={{ width: 72, accentColor: "#3b82f6" }} />
+          <div style={{ width: size + 6, height: size + 6, borderRadius: "50%", background: tool === "eraser" ? "#555" : color, border: "1px solid #444", flexShrink: 0, transition: "all .1s" }} />
+        </div>
+        <div style={{ width: 1, height: 24, background: "#333" }} />
+        <button onClick={undo} disabled={!history.length} style={{ padding: "5px 12px", borderRadius: 6, border: "none", fontSize: 12, fontWeight: 600, cursor: history.length ? "pointer" : "not-allowed", background: "#2a2a2a", color: history.length ? "#ccc" : "#555" }}>↩ Undo</button>
+        <button onClick={clearAll} style={{ padding: "5px 12px", borderRadius: 6, border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer", background: "#2a2a2a", color: "#ef4444" }}>🗑 Clear</button>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          <button onClick={download} style={{ padding: "7px 18px", borderRadius: 7, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: "#22c55e", color: "#fff" }}>⬇ Download PNG</button>
+          <button onClick={onClose}  style={{ padding: "7px 14px", borderRadius: 7, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: "#333", color: "#fff" }}>✕ Close</button>
+        </div>
+      </div>
+      {/* Drawing area */}
+      <div style={{ flex: 1, overflow: "auto", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "20px 16px" }}>
+        <div style={{ position: "relative", display: "inline-block", boxShadow: "0 8px 40px rgba(0,0,0,0.6)", borderRadius: 8, overflow: "hidden" }}>
+          <img ref={imgRef} src={imageData} onLoad={onImgLoad} alt="submission"
+            style={{ display: "block", maxWidth: "min(900px, 90vw)", userSelect: "none", pointerEvents: "none" }} />
+          <canvas ref={canvasRef}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", cursor: tool === "eraser" ? "cell" : "crosshair", touchAction: "none" }}
+            onMouseDown={startDraw} onMouseMove={doDraw} onMouseUp={stopDraw} onMouseLeave={stopDraw}
+            onTouchStart={startDraw} onTouchMove={doDraw} onTouchEnd={stopDraw}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── AnnotatableImage — drop-in replacement for <img> in GradeView ────────────
+function AnnotatableImage({ dataUrl, name }) {
+  const [annotating, setAnnotating] = useState(false);
+
+  function downloadOriginal() {
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = name || "submission.png";
+    a.click();
+  }
+
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <img src={dataUrl} alt={name}
+        style={{ display: "block", maxWidth: "100%", maxHeight: 320, borderRadius: 8, border: `1px solid ${T.greenBorder}`, objectFit: "contain", marginBottom: 8 }} />
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="btn-outline" onClick={() => setAnnotating(true)}
+          style={{ fontSize: 12, padding: "6px 14px", display: "flex", alignItems: "center", gap: 5 }}>
+          ✏️ Annotate
+        </button>
+        <button className="btn-outline" onClick={downloadOriginal}
+          style={{ fontSize: 12, padding: "6px 14px", display: "flex", alignItems: "center", gap: 5 }}>
+          ⬇ Download
+        </button>
+      </div>
+      {annotating && (
+        <AnnotationTool imageData={dataUrl} fileName={name} onClose={() => setAnnotating(false)} />
+      )}
+    </div>
+  );
+}
+
+// ─── Student Result View ──────────────────────────────────────────────────────
+function StudentResultView({ onBack }) {
+  const [step,      setStep]      = useState("code");
+  const [codeInput, setCodeInput] = useState("");
+  const [codeErr,   setCodeErr]   = useState("");
+  const [loading,   setLoading]   = useState(false);
+  const [name,      setName]      = useState("");
+  const [results,   setResults]   = useState([]);
+  const [sel,       setSel]       = useState(null);
+
+  const sidebar = (
+    <>
+      <Logo />
+      <div style={{ marginTop: "auto" }}>
+        <button className="nav-item" onClick={onBack}>← Home</button>
+      </div>
+    </>
+  );
+
+  async function lookup() {
+    if (codeInput.length !== 5) return;
+    setLoading(true); setCodeErr("");
+
+    const subKeys = await db.list("sub:");
+    const list    = [];
+    for (const k of subKeys) {
+      const sub = await db.get(k);
+      if (!sub || sub.studentCode !== codeInput) continue;
+      const exam = await db.get(`exam:${sub.examId}`);
+      if (exam) list.push({ sub: { ...sub, _key: k }, exam });
+    }
+
+    if (list.length === 0) {
+      setCodeErr("No submissions found for this code. Please check again.");
+      setLoading(false); return;
+    }
+
+    setName(list[0].sub.studentName);
+    list.sort((a, b) => b.sub.submittedAt - a.sub.submittedAt);
+    setResults(list);
+    setStep("list");
+    setLoading(false);
+  }
+
+  if (step === "code") return (
+    <Shell sidebar={sidebar}>
+      <div style={{ maxWidth: 420, margin: "4rem auto" }} className="fu">
+        <PageHeader subtitle="Students" title="Check My Results" />
+        <div className="card" style={{ padding: "2rem" }}>
+          <p style={{ fontSize: 14, color: T.gray6, marginBottom: 20 }}>
+            Enter your 5-digit student code to view your submitted exams, scores, and a question-by-question breakdown of your answers.
+          </p>
+          <div style={fld}>
+            <label style={lbl}>Your 5-digit student code</label>
+            <input className="inp"
+              style={{ fontFamily: "monospace", fontSize: 28, letterSpacing: "0.35em", textAlign: "center" }}
+              value={codeInput} maxLength={5} placeholder="_ _ _ _ _"
+              onChange={e => { setCodeInput(e.target.value.replace(/\D/g, "").slice(0, 5)); setCodeErr(""); }}
+              onKeyDown={e => e.key === "Enter" && codeInput.length === 5 && lookup()} />
+          </div>
+          {codeErr && <p style={{ color: T.red, fontSize: 13, marginBottom: 12 }}>{codeErr}</p>}
+          <PrimaryBtn onClick={lookup} disabled={codeInput.length !== 5 || loading}>
+            {loading ? "Looking up…" : "View My Results →"}
+          </PrimaryBtn>
+        </div>
+      </div>
+    </Shell>
+  );
+
+  if (sel) return (
+    <ResultDetail sub={sel.sub} exam={sel.exam} studentName={name}
+      onBack={() => setSel(null)} />
+  );
+
+  return (
+    <Shell sidebar={sidebar}>
+      <div className="fu">
+        <PageHeader back="Home" onBack={onBack} subtitle={name} title="My Results" />
+        {results.length === 0 ? (
+          <div className="card" style={{ textAlign: "center", padding: "3.5rem 2rem" }}>
+            <div style={{ fontSize: 44, marginBottom: 12, opacity: 0.2 }}>📋</div>
+            <p style={{ fontSize: 15, color: T.gray6, marginBottom: 6 }}>No submissions found yet.</p>
+            <p style={mut}>Your results will appear here once you have taken and submitted an exam.</p>
+          </div>
+        ) : (
+          results.map(({ sub, exam }, i) => {
+            const totalMarks = exam.questions.reduce((a, q) => a + q.marks, 0);
+            const pct = totalMarks > 0 && sub.graded ? Math.round(sub.totalScore / totalMarks * 100) : null;
+            const scoreColor = pct === null ? T.orange : pct >= 75 ? T.green : pct >= 50 ? T.orange : T.red;
+
+            return (
+              <div key={sub._key || i} className="card card-click fu2"
+                style={{ animationDelay: `${i * 0.06}s` }}
+                onClick={() => setSel({ sub, exam })}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 15, fontWeight: 700, color: T.black, marginBottom: 6 }}>{exam.title}</p>
+                    {exam.description && <p style={{ fontSize: 13, color: T.gray6, marginBottom: 8 }}>{exam.description}</p>}
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <Badge color="blue">{exam.questions.length} questions</Badge>
+                      <Badge color="gray">Submitted {new Date(sub.submittedAt).toLocaleDateString()}</Badge>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    {sub.graded ? (
+                      <>
+                        <p style={{ fontSize: 26, fontWeight: 800, color: scoreColor, letterSpacing: "-0.04em", lineHeight: 1 }}>
+                          {sub.totalScore}<span style={{ fontSize: 14, color: T.gray4 }}>/{totalMarks}</span>
+                        </p>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: scoreColor, marginTop: 4 }}>{pct}%</p>
+                        <Badge color={pct >= 75 ? "green" : pct >= 50 ? "orange" : "red"}>
+                          {pct >= 75 ? "Pass" : pct >= 50 ? "Borderline" : "Fail"}
+                        </Badge>
+                      </>
+                    ) : (
+                      <>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: T.orange, marginBottom: 4 }}>⏳ Awaiting Grade</p>
+                        <Badge color="orange">Pending</Badge>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </Shell>
+  );
+}
+
+// ─── Result Detail — question-by-question review ──────────────────────────────
+function ResultDetail({ sub, exam, studentName, onBack }) {
+  const totalMarks = exam.questions.reduce((a, q) => a + q.marks, 0);
+  const pct = totalMarks > 0 && sub.graded ? Math.round(sub.totalScore / totalMarks * 100) : 0;
+
+  const [gradeLetter, gradeColor] =
+    pct >= 90 ? ["A", T.green]  :
+    pct >= 75 ? ["B", T.green]  :
+    pct >= 60 ? ["C", T.orange] :
+    pct >= 50 ? ["D", T.orange] : ["F", T.red];
+
+  const mcqQs      = exam.questions.filter(q => q.answerType === "mcq");
+  const correctMCQ = mcqQs.filter(q => sub.answers?.[q.id]?.value === q.correct).length;
+
+  const sidebar = (
+    <>
+      <Logo />
+      {sub.graded && (
+        <div style={{ margin: "12px 0 20px", padding: "14px", background: T.gray1, borderRadius: 10, textAlign: "center" }}>
+          <div style={{ width: 52, height: 52, borderRadius: "50%", background: gradeColor, margin: "0 auto 8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>{gradeLetter}</span>
+          </div>
+          <p style={{ fontSize: 20, fontWeight: 800, color: T.black, letterSpacing: "-0.03em" }}>
+            {sub.totalScore}<span style={{ color: T.gray4, fontSize: 13 }}>/{totalMarks}</span>
+          </p>
+          <p style={{ fontSize: 13, fontWeight: 700, color: gradeColor }}>{pct}%</p>
+        </div>
+      )}
+      <div style={{ marginTop: "auto" }}>
+        <button className="nav-item" onClick={onBack}>← My Results</button>
+      </div>
+    </>
+  );
+
+  return (
+    <Shell sidebar={sidebar}>
+      <div className="fu" style={{ maxWidth: 740 }}>
+        <PageHeader back="My Results" onBack={onBack} subtitle={exam.title} title="Answer Review" />
+
+        {/* Score banner */}
+        {sub.graded ? (
+          <div className="card fu2" style={{ marginBottom: 24, padding: "1.5rem 1.75rem", background: pct >= 50 ? T.greenBg : T.redBg, borderColor: pct >= 50 ? T.greenBorder : T.redBorder }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 700, color: T.gray4, letterSpacing: "0.06em", marginBottom: 6 }}>TOTAL SCORE</p>
+                <p style={{ fontSize: 40, fontWeight: 800, color: T.black, letterSpacing: "-0.05em", lineHeight: 1 }}>
+                  {sub.totalScore}
+                  <span style={{ fontSize: 20, color: T.gray4, fontWeight: 600 }}>/{totalMarks}</span>
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: 16 }}>
+                {mcqQs.length > 0 && (
+                  <div style={{ textAlign: "center", padding: "10px 16px", background: "#fff", borderRadius: 10, border: `1px solid ${T.gray2}` }}>
+                    <p style={{ fontSize: 20, fontWeight: 800, color: correctMCQ === mcqQs.length ? T.green : T.orange }}>{correctMCQ}/{mcqQs.length}</p>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: T.gray4 }}>MCQ Correct</p>
+                  </div>
+                )}
+                <div style={{ textAlign: "center", padding: "10px 16px", background: "#fff", borderRadius: 10, border: `1px solid ${T.gray2}` }}>
+                  <div style={{ width: 44, height: 44, borderRadius: "50%", background: gradeColor, margin: "0 auto 4px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <span style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>{gradeLetter}</span>
+                  </div>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: T.gray4 }}>{pct}%</p>
+                </div>
+              </div>
+            </div>
+            {sub.feedback && (
+              <div style={{ marginTop: 16, padding: "12px 14px", background: "#fff", borderRadius: 8, border: `1px solid ${T.gray2}` }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: T.gray4, letterSpacing: "0.06em", marginBottom: 6 }}>TEACHER FEEDBACK</p>
+                <p style={{ fontSize: 14, color: T.gray8, lineHeight: 1.6 }}>{sub.feedback}</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="card fu2" style={{ marginBottom: 24, padding: "1.25rem", background: T.orangeBg, borderColor: T.orangeBorder }}>
+            <p style={{ fontWeight: 700, color: T.orange }}>⏳ Not yet graded</p>
+            <p style={{ fontSize: 13, color: T.gray6, marginTop: 4 }}>Your teacher hasn't graded this exam yet. Check back later.</p>
+          </div>
+        )}
+
+        {/* Question-by-question */}
+        {exam.questions.map((q, i) => {
+          const ans        = sub.answers?.[q.id];
+          const isCorrect  = q.answerType === "mcq" && ans?.value === q.correct;
+          const isWrong    = q.answerType === "mcq" && ans !== undefined && ans?.value !== q.correct;
+          const earnedMark = sub.graded && sub.grades ? (sub.grades[q.id] ?? null) : null;
+
+          let cardBorderLeft = T.gray4;
+          if (isCorrect) cardBorderLeft = T.green;
+          if (isWrong)   cardBorderLeft = T.red;
+
+          return (
+            <div key={q.id} className="card fu3"
+              style={{ marginBottom: 14, borderLeftWidth: 4, borderLeftColor: cardBorderLeft, animationDelay: `${i * 0.05}s` }}>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: T.gray4, letterSpacing: "0.05em" }}>Q{i + 1}</span>
+                  {isCorrect && <Badge color="green">✓ Correct</Badge>}
+                  {isWrong   && <Badge color="red">✗ Incorrect</Badge>}
+                  {q.answerType === "handwritten" && <Badge color="blue">Written / File</Badge>}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {earnedMark !== null && (
+                    <span style={{ fontSize: 13, fontWeight: 800, color: T.black }}>
+                      {earnedMark}<span style={{ color: T.gray4, fontWeight: 500 }}>/{q.marks}</span>
+                    </span>
+                  )}
+                  <Badge color="gray">{q.marks} mark{q.marks !== 1 ? "s" : ""}</Badge>
+                </div>
+              </div>
+
+              <p style={{ fontSize: 15, fontWeight: 600, color: T.black, marginBottom: 14, lineHeight: 1.5 }}>{q.text}</p>
+
+              {/* MCQ review */}
+              {q.answerType === "mcq" && Array.isArray(q.options) && (
+                <div>
+                  {q.options.map((opt, oi) => {
+                    const isSelected    = ans?.value === oi;
+                    const isCorrectOpt  = q.correct  === oi;
+                    let bg = "transparent", border = T.gray2, color = T.black, weight = 400;
+                    if (isCorrectOpt)               { bg = T.greenBg; border = T.green;  color = T.green;  weight = 700; }
+                    if (isSelected && !isCorrectOpt) { bg = T.redBg;  border = T.red;    color = T.red;    weight = 700; }
+                    return (
+                      <div key={oi} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, border: `1.5px solid ${border}`, background: bg, marginBottom: 8 }}>
+                        <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          {(isSelected || isCorrectOpt) && <div style={{ width: 10, height: 10, borderRadius: "50%", background: isCorrectOpt ? T.green : T.red }} />}
+                        </div>
+                        <span style={{ fontSize: 14, color, fontWeight: weight, flex: 1 }}>{opt}</span>
+                        {isCorrectOpt  && <span style={{ fontSize: 11, fontWeight: 700, color: T.green, whiteSpace: "nowrap" }}>✓ Correct answer</span>}
+                        {isSelected && !isCorrectOpt && <span style={{ fontSize: 11, fontWeight: 700, color: T.red, whiteSpace: "nowrap" }}>✗ Your answer</span>}
+                      </div>
+                    );
+                  })}
+                  {!ans && <p style={{ ...mut, fontStyle: "italic" }}>No answer selected.</p>}
+                </div>
+              )}
+
+              {/* File/image review */}
+              {q.answerType === "handwritten" && (
+                <div>
+                  {ans?.files?.length > 0 ? ans.files.map((f, fi) => (
+                    f.mimeType === "application/pdf"
+                      ? <a key={fi} href={f.dataUrl} download={f.name} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, background: T.blueBg, border: `1px solid ${T.blueBorder}`, color: T.blue, fontSize: 13, fontWeight: 600, textDecoration: "none", marginBottom: 8 }}>📄 {f.name}</a>
+                      : <img key={fi} src={f.dataUrl} alt={f.name} style={{ maxWidth: "100%", maxHeight: 320, borderRadius: 8, border: `1px solid ${T.gray2}`, objectFit: "contain", display: "block", marginBottom: 8 }} />
+                  )) : <p style={{ ...mut, fontStyle: "italic" }}>No files submitted.</p>}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        <div style={{ height: 40 }} />
+      </div>
+    </Shell>
+  );
+}
